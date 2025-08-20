@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 Subtitle Translator MiladCCG (v5.2)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header"><h1>🎬 Subtitle Translator MiladCCG</h1><p>ترجمه حرفه‌ای با هوش مصنوعی و حفظ زمان‌بندی اصلی</p></header>
+        <div class="main-layout">
+            <aside class="sidebar">
+                <div class="card">
+                    <div class="upload-area" id="uploadArea"><span class="upload-icon">📁</span><div class="upload-text">آپلود فایل زیرنویس</div><div class="upload-subtext">فرمت‌های پشتیبانی: SRT, TXT</div><input type="file" id="fileInput" class="file-input" accept=".srt,.txt"></div>
+                </div>
+                <div class="card">
+                    <h3 class="settings-title">⚙️ تنظیمات ترجمه</h3>
+                    <div class="setting-group"><div class="setting-label">سطح پردازش:</div><div class="setting-options" data-type="level"><button class="option-btn" data-value="1">سطح 1 - خط به خط</button><button class="option-btn" data-value="2">سطح 2 - پاراگراف</button><button class="option-btn active" data-value="3">سطح 3 - جامع</button></div></div>
+                    <div class="setting-group"><div class="setting-label">لحن ترجمه:</div><div class="setting-options" data-type="tone"><button class="option-btn active" data-value="1">لحن 1 - نیمه رسمی</button><button class="option-btn" data-value="2">لحن 2 - محاوره‌ای</button><button class="option-btn" data-value="3">لحن 3 - خودمانی</button></div></div>
+                    <div class="artistic-mode"><input type="checkbox" id="artisticMode"><label for="artisticMode">حالت هنری (شعر، آهنگ، ادبیات)</label></div>
+                    <div class="setting-group"><div class="setting-label">🔒 کد دسترسی:</div><input type="password" id="accessPassword" class="password-input" placeholder="ابتدا فایل زیرنویس آپلود کنید" disabled><div class="password-error" id="passwordError">پسورد اشتباه است!</div></div>
+                    <button class="translate-btn" id="translateBtn" disabled>🚀 شروع ترجمه</button>
+                </div>
+            </aside>
+            <main class="content-main">
+                <div class="progress-container" id="progressContainer"><div class="progress-content"><div class="progress-spinner"></div><span id="progressText">در حال ترجمه</span></div></div>
+                <div class="content-header"><h3>ویرایشگر زیرنویس</h3></div>
+                <div class="content-body">
+                    <div class="column-headers"><div class="column-header">متن ترجمه شده</div><div class="column-header">متن اصلی</div></div>
+                    <div class="content-grid" id="contentGrid">
+                        <div class="block-wrapper" id="empty-state-wrapper">
+                            <div class="empty-state"><div class="icon">📋</div><h3>ترجمه انجام نشده</h3><p>پس از آپلود فایل, روی دکمه شروع ترجمه کلیک کنید</p></div>
+                            <div class="empty-state"><div class="icon">📄</div><h3>فایل زیرنویس آپلود نشده</h3><p>لطفاً ابتدا فایل زیرنویس خود را آپلود کنید</p></div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        <div class="card download-section" id="downloadSection">
+            <h3>💾 دانلود فایل نهایی</h3>
+            <button class="download-btn" id="downloadBtn">📥 دانلود فایل SRT ترجمه شده</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
