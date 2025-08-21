@@ -1,11 +1,11 @@
-// ===== SUBTITLE TRANSLATOR FRONT-END LOGIC - v6.0 (Sub-ID Protocol) =====
+// ===== SUBTITLE TRANSLATOR FRONT-END LOGIC - v6.0 FINAL (Sub-ID Protocol) =====
 
-// ❗️❗️❗️ Important: Change this to your Worker's URL ❗️❗️❗️
-const API_BASE_URL = 'https://subtitle-translator.milad-ch-1981.workers.dev'; 
+// ❗️❗️❗️ مهم: این آدرس را با آدرس Worker خودتان جایگزین کنید ❗️❗️❗️
+const API_BASE_URL = 'YOUR_WORKER_URL'; 
 
 // --- State Management ---
 let currentFile = null;
-let originalLines = []; // Switched from blocks to lines
+let originalLines = [];
 let translatedLines = [];
 let currentSettings = { level: 3, tone: 2, artistic: false };
 
@@ -52,7 +52,6 @@ accessPassword.addEventListener("input", () => {
 });
 
 // --- Core Functions ---
-
 function handleFile(file) {
     if (!file.name.match(/\.(srt|txt)$/i)) { alert("Please upload only SRT or TXT files."); return; }
     currentFile = file;
@@ -67,12 +66,10 @@ function handleFile(file) {
     reader.readAsText(file);
 }
 
-// UPDATED PARSING LOGIC with Sub-ID System
 function parseSubtitleFile(content) {
     originalLines = [];
     const isSrt = content.includes("-->");
     const chunks = content.trim().replace(/\r\n/g, "\n").split(/\n\s*\n/);
-    let lineCounter = 0;
 
     for (const chunk of chunks) {
         const lines = chunk.split("\n").map(l => l.trim().replace(/<[^>]+>/g, "")).filter(Boolean);
@@ -91,9 +88,8 @@ function parseSubtitleFile(content) {
                 textLines = [lines.join(" ")];
             }
 
-            if (textLines.length > 1 && isSrt) { // Multi-line block in SRT
+            if (textLines.length > 1 && isSrt) { // Multi-line block in SRT -> Create Sub-IDs
                 textLines.forEach((line, index) => {
-                    lineCounter++;
                     originalLines.push({
                         id: `[#${String(num).padStart(3, "0")}-${index + 1}]`,
                         text: line.trim(),
@@ -102,7 +98,6 @@ function parseSubtitleFile(content) {
                     });
                 });
             } else { // Single-line block or TXT line
-                lineCounter++;
                 originalLines.push({
                     id: `[#${String(num).padStart(3, "0")}]`,
                     text: textLines.join(" ").trim(),
@@ -121,20 +116,8 @@ function displayOriginalContent() {
     originalLines.forEach(line => {
         html += `
         <div class="block-wrapper" id="wrapper-${line.id}">
-            <div class="subtitle-block translated">
-                <div class="block-header">
-                    <div class="block-id">${line.id}</div>
-                    ${line.timing ? `<div class="block-timing">${line.timing}</div>` : ""}
-                </div>
-                <div class="block-content translated" style="color: var(--text-secondary);">Awaiting translation...</div>
-            </div>
-            <div class="subtitle-block original">
-                <div class="block-header">
-                    <div class="block-id">${line.id}</div>
-                    ${line.timing ? `<div class="block-timing">${line.timing}</div>` : ""}
-                </div>
-                <div class="block-content original">${line.text}</div>
-            </div>
+            <div class="subtitle-block translated"><div class="block-header"><div class="block-id">${line.id}</div>${line.timing ? `<div class="block-timing">${line.timing}</div>` : ""}</div><div class="block-content translated" style="color: var(--text-secondary);">Awaiting translation...</div></div>
+            <div class="subtitle-block original"><div class="block-header"><div class="block-id">${line.id}</div>${line.timing ? `<div class="block-timing">${line.timing}</div>` : ""}</div><div class="block-content original">${line.text}</div></div>
         </div>`;
     });
     contentGrid.innerHTML = html;
@@ -151,9 +134,7 @@ function displayTranslatedContent() {
     });
 }
 
-function updateProgress(message) {
-    progressText.textContent = message;
-}
+function updateProgress(message) { progressText.textContent = message; }
 
 async function validatePassword() {
     const password = accessPassword.value.trim();
@@ -182,10 +163,11 @@ async function validatePassword() {
 
 async function startTranslation() {
     if (!currentFile || originalLines.length === 0) return;
-	 if (!API_BASE_URL || API_BASE_URL === 'https://subtitle-translator.milad-ch-1981.workers.dev') {
-		alert("Error: API_BASE_URL is not set in script.js!");
-		return;
-	}
+    // CORRECTED 'if' CONDITION
+    if (!API_BASE_URL || API_BASE_URL === 'YOUR_WORKER_URL') {
+        alert("Error: API_BASE_URL is not set in script.js! Please replace the placeholder with your actual worker URL.");
+        return;
+    }
     progressContainer.style.display = "block";
     translateBtn.disabled = true;
     downloadSection.style.display = "none";
@@ -219,13 +201,11 @@ async function startTranslation() {
     }
 }
 
-// UPDATED REBUILDING LOGIC for Sub-ID System
 function downloadResult() {
     if (!translatedLines.length) return;
-
     const srtBlocks = {};
     translatedLines.forEach(line => {
-        if (!line.timing) return; // Skip non-SRT lines
+        if (!line.timing) return;
         const blockNum = line.blockNum;
         if (!srtBlocks[blockNum]) {
             srtBlocks[blockNum] = { timing: line.timing, lines: [] };
