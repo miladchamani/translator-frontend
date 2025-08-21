@@ -182,7 +182,7 @@ async function validatePassword() {
 
 async function startTranslation() {
     if (!currentFile || originalLines.length === 0) return;
-	 if (!API_BASE_URL || API_BASE_URL === 'YOUR_WORKER_URL') {
+	 if (!API_BASE_URL || API_BASE_URL === 'https://subtitle-translator.milad-ch-1981.workers.dev') {
 		alert("Error: API_BASE_URL is not set in script.js!");
 		return;
 	}
