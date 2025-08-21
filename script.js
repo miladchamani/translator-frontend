@@ -1,13 +1,13 @@
-// ===== SUBTITLE TRANSLATOR FRONT-END LOGIC - v5.2 =====
+// ===== SUBTITLE TRANSLATOR FRONT-END LOGIC - v6.0 (Sub-ID Protocol) =====
 
-// ❗️❗️❗️ مهم: این آدرس را به آدرس Worker خود تغییر دهید ❗️❗️❗️
-const API_BASE_URL = 'https://subtitle-translator.milad-ch-1981.workers.dev'; // مثال: https://my-worker.example.com
+// ❗️❗️❗️ Important: Change this to your Worker's URL ❗️❗️❗️
+const API_BASE_URL = 'YOUR_WORKER_URL'; 
 
 // --- State Management ---
 let currentFile = null;
-let originalBlocks = [];
-let translatedBlocks = [];
-let currentSettings = { level: 3, tone: 1, artistic: false };
+let originalLines = []; // Switched from blocks to lines
+let translatedLines = [];
+let currentSettings = { level: 3, tone: 2, artistic: false };
 
 // --- DOM Element Selection ---
 const uploadArea = document.getElementById("uploadArea");
@@ -24,28 +24,14 @@ const passwordError = document.getElementById("passwordError");
 
 // --- Event Listeners ---
 uploadArea.addEventListener("click", () => fileInput.click());
-
 ["dragover", "dragleave", "drop"].forEach(eventName => {
     uploadArea.addEventListener(eventName, e => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (eventName === "dragover") {
-            uploadArea.classList.add("dragover");
-        } else {
-            uploadArea.classList.remove("dragover");
-        }
-        if (eventName === "drop" && e.dataTransfer.files.length) {
-            handleFile(e.dataTransfer.files[0]);
-        }
+        e.preventDefault(); e.stopPropagation();
+        uploadArea.classList.toggle("dragover", eventName === "dragover");
+        if (eventName === "drop" && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
 });
-
-fileInput.addEventListener("change", e => {
-    if (e.target.files.length) {
-        handleFile(e.target.files[0]);
-    }
-});
-
+fileInput.addEventListener("change", e => e.target.files.length && handleFile(e.target.files[0]));
 document.querySelectorAll(".setting-options").forEach(group => {
     group.addEventListener("click", e => {
         const button = e.target.closest(".option-btn");
@@ -56,11 +42,9 @@ document.querySelectorAll(".setting-options").forEach(group => {
         }
     });
 });
-
 artisticMode.addEventListener("change", e => currentSettings.artistic = e.target.checked);
 translateBtn.addEventListener("click", startTranslation);
 downloadBtn.addEventListener("click", downloadResult);
-
 let passwordTimeout = null;
 accessPassword.addEventListener("input", () => {
     clearTimeout(passwordTimeout);
@@ -68,30 +52,30 @@ accessPassword.addEventListener("input", () => {
 });
 
 // --- Core Functions ---
+
 function handleFile(file) {
-    if (!file.name.match(/\.(srt|txt)$/i)) {
-        alert("لطفاً فقط فایل‌های SRT یا TXT آپلود کنید.");
-        return;
-    }
+    if (!file.name.match(/\.(srt|txt)$/i)) { alert("Please upload only SRT or TXT files."); return; }
     currentFile = file;
     const reader = new FileReader();
     reader.onload = e => {
         parseSubtitleFile(e.target.result);
         accessPassword.disabled = false;
-        accessPassword.placeholder = "پسورد را وارد کنید";
+        accessPassword.placeholder = "Enter access code";
         validatePassword();
-        uploadArea.innerHTML = `<span class='upload-icon'>✅</span><div class='upload-text'>فایل آپلود شد: ${currentFile.name}</div><div class='upload-subtext'>${originalBlocks.length} خط دیالوگ شناسایی شد</div>`;
+        uploadArea.innerHTML = `<span class='upload-icon'>✅</span><div class='upload-text'>File Uploaded: ${currentFile.name}</div><div class='upload-subtext'>${originalLines.length} dialogue lines identified</div>`;
     };
     reader.readAsText(file);
 }
 
+// UPDATED PARSING LOGIC with Sub-ID System
 function parseSubtitleFile(content) {
-    originalBlocks = [];
+    originalLines = [];
     const isSrt = content.includes("-->");
     const chunks = content.trim().replace(/\r\n/g, "\n").split(/\n\s*\n/);
+    let lineCounter = 0;
 
     for (const chunk of chunks) {
-        const lines = chunk.split("\n").map(l => l.trim()).filter(Boolean);
+        const lines = chunk.split("\n").map(l => l.trim().replace(/<[^>]+>/g, "")).filter(Boolean);
         if (lines.length < (isSrt ? 2 : 1)) continue;
 
         try {
@@ -102,31 +86,31 @@ function parseSubtitleFile(content) {
                 timing = lines[1];
                 textLines = lines.slice(2);
             } else {
-                num = originalBlocks.length + 1;
+                num = originalLines.length + 1;
                 timing = null;
                 textLines = [lines.join(" ")];
             }
 
-            if (textLines.length > 1) {
+            if (textLines.length > 1 && isSrt) { // Multi-line block in SRT
                 textLines.forEach((line, index) => {
-                    originalBlocks.push({
+                    lineCounter++;
+                    originalLines.push({
                         id: `[#${String(num).padStart(3, "0")}-${index + 1}]`,
-                        text: line.replace(/<[^>]+>/g, "").trim(),
+                        text: line.trim(),
                         timing: timing,
                         blockNum: num
                     });
                 });
-            } else if (textLines.length === 1) {
-                originalBlocks.push({
+            } else { // Single-line block or TXT line
+                lineCounter++;
+                originalLines.push({
                     id: `[#${String(num).padStart(3, "0")}]`,
-                    text: textLines[0].replace(/<[^>]+>/g, "").trim(),
+                    text: textLines.join(" ").trim(),
                     timing: timing,
                     blockNum: num
                 });
             }
-        } catch (error) {
-            console.error("Error parsing block:", chunk, error);
-        }
+        } catch (error) { console.error("Error parsing chunk:", chunk, error); }
     }
     displayOriginalContent();
 }
@@ -134,35 +118,35 @@ function parseSubtitleFile(content) {
 function displayOriginalContent() {
     document.getElementById("empty-state-wrapper").style.display = "none";
     let html = "";
-    originalBlocks.forEach(block => {
+    originalLines.forEach(line => {
         html += `
-<div class="block-wrapper" id="wrapper-${block.id}">
-<div class="subtitle-block translated">
-<div class="block-header">
-<div class="block-id">${block.id}</div>
-${block.timing ? `<div class="block-timing">${block.timing}</div>` : ""}
-</div>
-<div class="block-content translated" style="color: var(--text-secondary);">منتظر شروع ترجمه ...</div>
-</div>
-<div class="subtitle-block original">
-<div class="block-header">
-<div class="block-id">${block.id}</div>
-${block.timing ? `<div class="block-timing">${block.timing}</div>` : ""}
-</div>
-<div class="block-content original">${block.text}</div>
-</div>
-</div>
-`;
+        <div class="block-wrapper" id="wrapper-${line.id}">
+            <div class="subtitle-block translated">
+                <div class="block-header">
+                    <div class="block-id">${line.id}</div>
+                    ${line.timing ? `<div class="block-timing">${line.timing}</div>` : ""}
+                </div>
+                <div class="block-content translated" style="color: var(--text-secondary);">Awaiting translation...</div>
+            </div>
+            <div class="subtitle-block original">
+                <div class="block-header">
+                    <div class="block-id">${line.id}</div>
+                    ${line.timing ? `<div class="block-timing">${line.timing}</div>` : ""}
+                </div>
+                <div class="block-content original">${line.text}</div>
+            </div>
+        </div>`;
     });
     contentGrid.innerHTML = html;
 }
 
 function displayTranslatedContent() {
-    translatedBlocks.forEach(block => {
-        const wrapper = document.getElementById(`wrapper-${block.id}`);
+    translatedLines.forEach(line => {
+        const wrapper = document.getElementById(`wrapper-${line.id}`);
         if (wrapper) {
-            wrapper.querySelector(".block-content.translated").innerHTML = block.text;
-            wrapper.querySelector(".block-content.translated").style.color = "var(--text-primary)";
+            const el = wrapper.querySelector(".block-content.translated");
+            el.innerHTML = line.text;
+            el.style.color = "var(--text-primary)";
         }
     });
 }
@@ -173,104 +157,80 @@ function updateProgress(message) {
 
 async function validatePassword() {
     const password = accessPassword.value.trim();
-    const canTranslate = currentFile && originalBlocks.length > 0;
-    
     translateBtn.disabled = true;
     passwordError.style.display = "none";
     accessPassword.style.borderColor = "var(--border-color)";
-
     if (!password) return;
-
     try {
         const response = await fetch(`${API_BASE_URL}/api/validate-password`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password: password }),
         });
         const data = await response.json();
         if (data.valid) {
             accessPassword.style.borderColor = "var(--success)";
-            if (canTranslate) {
-                translateBtn.disabled = false;
-            }
+            if (currentFile && originalLines.length > 0) translateBtn.disabled = false;
         } else {
             passwordError.style.display = "block";
             accessPassword.style.borderColor = "#ef4444";
         }
     } catch (error) {
-        passwordError.textContent = "خطا در ارتباط با سرور";
+        passwordError.textContent = "Server communication error";
         passwordError.style.display = "block";
     }
 }
 
 async function startTranslation() {
-    if (!currentFile || originalBlocks.length === 0) return;
-    if (!API_BASE_URL) {
-        alert("خطا: آدرس API در فایل script.js تنظیم نشده است!");
+    if (!currentFile || originalLines.length === 0) return;
+    if (!API_BASE_URL || API_BASE_URL === 'YOUR_WORKER_URL') {
+        alert("Error: API_BASE_URL is not set in script.js!");
         return;
     }
-
     progressContainer.style.display = "block";
     translateBtn.disabled = true;
     downloadSection.style.display = "none";
-    let isHolistic = originalBlocks.length > 20 && currentSettings.level === 3;
-
+    updateProgress("Translating in chunks...");
     try {
-        updateProgress(isHolistic ? "مرحله ۱ از ۲: در حال تحلیل زمینه کلی..." : "در حال آماده‌سازی برای ترجمه...");
         const response = await fetch(`${API_BASE_URL}/api/translate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                blocks: originalBlocks,
-                settings: currentSettings,
-                password: accessPassword.value.trim()
-            })
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ blocks: originalLines, settings: currentSettings, password: accessPassword.value.trim() })
         });
-
-        if (isHolistic) {
-            updateProgress("مرحله ۲ از ۲: در حال ترجمه تکه‌ها...");
-        }
-
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || `Server error: ${response.status}`);
         }
-
         const result = await response.json();
-
         if (result.success) {
-            translatedBlocks = result.translatedBlocks;
+            translatedLines = result.translatedBlocks;
             displayTranslatedContent();
-            updateProgress("ترجمه با موفقیت تکمیل شد!");
+            updateProgress("Translation completed successfully!");
             setTimeout(() => {
                 progressContainer.style.display = "none";
                 downloadSection.style.display = "block";
             }, 1500);
         } else {
-            progressContainer.style.display = "none";
-            updateProgress("خطا در ترجمه!");
-            alert(result.error || "An unknown server error occurred.");
+            throw new Error(result.error || "An unknown server error occurred.");
         }
     } catch (error) {
         console.error("Translation process error:", error);
         progressContainer.style.display = "none";
-        updateProgress("خطای جدی!");
+        updateProgress("Critical Error!");
         alert("Translation Error: " + error.message);
     }
 }
 
+// UPDATED REBUILDING LOGIC for Sub-ID System
 function downloadResult() {
-    if (!translatedBlocks.length) return;
+    if (!translatedLines.length) return;
 
     const srtBlocks = {};
-    translatedBlocks.forEach(translatedBlock => {
-        const original = originalBlocks.find(b => b.id === translatedBlock.id);
-        if (!original || !original.timing) return;
-        const blockNum = original.blockNum;
+    translatedLines.forEach(line => {
+        if (!line.timing) return; // Skip non-SRT lines
+        const blockNum = line.blockNum;
         if (!srtBlocks[blockNum]) {
-            srtBlocks[blockNum] = { timing: original.timing, lines: [] };
+            srtBlocks[blockNum] = { timing: line.timing, lines: [] };
         }
-        srtBlocks[blockNum].lines.push(translatedBlock.originalTranslation);
+        srtBlocks[blockNum].lines.push(line.originalTranslation);
     });
 
     let srtContent = "";
