@@ -1,4 +1,4 @@
-// ===== SUBTITLE TRANSLATOR FRONT-END - v7.0 (Resilient Protocol) =====
+// ===== SUBTITLE TRANSLATOR FRONT-END - v7.1 (RTL Download Fix) =====
 
 // ❗️❗️❗️ مهم: این آدرس را با آدرس Worker خودتان جایگزین کنید ❗️❗️❗️
 const API_BASE_URL = 'https://subtitle-translator.milad-ch-1981.workers.dev';
@@ -109,7 +109,6 @@ function parseSubtitleFile(content) {
       }
 
       if (textLines.length > 1 && isSrt) {
-        // Multi-line block in SRT -> Create Sub-IDs
         textLines.forEach((line, lineIndex) => {
           originalBlocks.push({
             id: `[#${String(num).padStart(3, "0")}-${lineIndex + 1}]`,
@@ -119,7 +118,6 @@ function parseSubtitleFile(content) {
           });
         });
       } else if (textLines.length > 0) {
-        // Single-line block or TXT line
         originalBlocks.push({
           id: `[#${String(num).padStart(3, "0")}]`,
           text: textLines.join(" ").trim(),
@@ -164,7 +162,7 @@ function displayTranslatedContent() {
     const wrapper = document.getElementById(`wrapper-${block.id}`);
     if (wrapper) {
       const el = wrapper.querySelector(".block-content.translated");
-      el.innerHTML = block.text; // Worker already handles RTL formatting
+      el.innerHTML = block.text;
       el.style.color = block.text.startsWith("[Translation Failed") ? "#ef4444" : "var(--text-primary)";
     }
   });
@@ -252,35 +250,39 @@ async function startTranslation() {
 }
 
 function downloadResult() {
-  if (!translatedBlocks.length) return;
-  const srtBlocks = {};
+    if (!translatedBlocks.length) return;
+    const srtBlocks = {};
 
-  translatedBlocks.forEach(block => {
-    if (!block.timing) return;
-    const blockNum = block.blockNum;
-    if (!srtBlocks[blockNum]) {
-      srtBlocks[blockNum] = { timing: block.timing, lines: [] };
-    }
-    // Use the raw translation without RTL control characters for the file
-    srtBlocks[blockNum].lines.push(block.originalTranslation.replace(/[\u202A-\u202E]/g, ''));
-  });
+    translatedBlocks.forEach(line => {
+        if (!line.timing) return;
+        const blockNum = line.blockNum;
+        if (!srtBlocks[blockNum]) {
+            srtBlocks[blockNum] = { timing: line.timing, lines: [] };
+        }
+        
+        // ⭐ FIX HERE ⭐
+        // We now use `line.text` which is the fully formatted RTL string from the server,
+        // instead of `line.originalTranslation` which was the raw, unformatted text.
+        // This preserves the crucial RLE/PDF control characters.
+        srtBlocks[blockNum].lines.push(line.text);
+    });
 
-  let srtContent = "";
-  Object.keys(srtBlocks).map(Number).sort((a, b) => a - b).forEach(num => {
-    const block = srtBlocks[num];
-    srtContent += `${num}\n${block.timing}\n${block.lines.join("\n")}\n\n`;
-  });
+    let srtContent = "";
+    Object.keys(srtBlocks).map(Number).sort((a, b) => a - b).forEach(num => {
+        const block = srtBlocks[num];
+        srtContent += `${num}\n${block.timing}\n${block.lines.join("\n")}\n\n`;
+    });
 
-  // Add BOM for UTF-8 compatibility
-  const blob = new Blob(["\uFEFF" + srtContent.trim()], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `translated_${currentFile.name}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+    // Add BOM for UTF-8 compatibility
+    const blob = new Blob(["\uFEFF" + srtContent.trim()], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `translated_${currentFile.name}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 // --- Initialize ---
